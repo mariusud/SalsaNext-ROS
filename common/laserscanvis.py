@@ -125,10 +125,10 @@ class LaserScanVis:
 
   def update_scan(self):
     # first open data
-    self.scan.open_scan(self.scan_names[self.offset])
-    if self.semantics:
-      self.scan.open_label(self.label_names[self.offset])
-      self.scan.colorize()
+    #self.scan.open_scan(self.scan_names[self.offset])
+    #if self.semantics:
+    #  self.scan.open_label(self.label_names[self.offset])
+    #  self.scan.colorize()
 
     # then change names
     title = "scan " + str(self.offset) + " of " + str(len(self.scan_names)-1)
@@ -155,11 +155,11 @@ class LaserScanVis:
                            size=1)
 
     # plot semantics
-    if self.semantics:
-      self.sem_vis.set_data(self.scan.points,
-                            face_color=self.scan.sem_label_color[..., ::-1],
-                            edge_color=self.scan.sem_label_color[..., ::-1],
-                            size=1)
+    # if self.semantics:
+    #   self.sem_vis.set_data(self.scan.points,
+    #                         face_color=self.scan.sem_label_color[..., ::-1],
+    #                         edge_color=self.scan.sem_label_color[..., ::-1],
+    #                         size=1)
 
     # plot instances
     if self.instances:

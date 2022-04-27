@@ -67,13 +67,15 @@ class LaserScan:
     def open_ROS_scan(self, data):
         self.reset()
         # put in attribute
-        points = data[:, 0:3]  # get xyz
-        remissions = data[:, 3]  # get remission
+        #points = data[:, 0:3]  # get xyz
+        #remissions = data[:, 3]  # get remission
 
-        points, remissions = [],[]
-        for p in data:
-            points.append(p[0:3])
-            remissions.append(p[4])
+        points, remissions = np.empty(shape=(len(data),3)), np.empty(shape=(len(data),1))
+        for i, p in enumerate(data):
+            points[i,0] = p[0] 
+            points[i,1] = p[1] 
+            points[i,2] = p[2] 
+            remissions[i,0] = p[3]
         self.set_points(points, remissions)
 
 
@@ -174,7 +176,6 @@ class LaserScan:
         # scale to image size using angular resolution
         proj_x *= self.proj_W  # in [0.0, W]
         proj_y *= self.proj_H  # in [0.0, H]
-
         # round and clamp for use as index
         proj_x = np.floor(proj_x)
         proj_x = np.minimum(self.proj_W - 1, proj_x)
@@ -198,14 +199,25 @@ class LaserScan:
         remission = self.remissions[order]
         proj_y = proj_y[order]
         proj_x = proj_x[order]
+        self.itemindex = np.where((proj_y > 0) & (proj_x > 0))[0]
 
-        # assing to images
+        # take
+        indices = np.take(indices,self.itemindex,axis=0)
+        order = np.take(order,self.itemindex,axis=0)
+        depth = np.take(depth,self.itemindex,axis=0)
+        points = np.take(points,self.itemindex,axis=0)
+        remission = np.take(remission,self.itemindex,axis=0).reshape(len(self.itemindex),)
+        proj_y = np.take(proj_y,self.itemindex,axis=0)
+        proj_x = np.take(proj_x,self.itemindex,axis=0)
+        self.unproj_range = np.take(self.unproj_range,self.itemindex,axis=0)
+
         self.proj_range[proj_y, proj_x] = depth
         self.proj_xyz[proj_y, proj_x] = points
         self.proj_remission[proj_y, proj_x] = remission
         self.proj_idx[proj_y, proj_x] = indices
         self.proj_mask = (self.proj_idx > 0).astype(np.int32)
 
+        self.selected_points = points
 
 class SemLaserScan(LaserScan):
     """Class that contains LaserScan with x,y,z,r,sem_label,sem_color_label,inst_label,inst_color_label"""
@@ -295,9 +307,10 @@ class SemLaserScan(LaserScan):
             raise TypeError("Label should be numpy array")
 
         # only fill in attribute if the right size
+        label = np.take(label,self.itemindex,axis=0)
         if label.shape[0] == self.points.shape[0]:
-            self.sem_label = label & 0xFFFF  # semantic label in lower half
-            self.inst_label = label >> 16  # instance id in upper half
+            self.sem_label = label #& 0xFFFF  # semantic label in lower half
+            #self.inst_label = label >> 16  # instance id in upper half
         else:
             print("Points shape: ", self.points.shape)
             print("Label shape: ", label.shape)
@@ -306,8 +319,10 @@ class SemLaserScan(LaserScan):
         # sanity check
         assert ((self.sem_label + (self.inst_label << 16) == label).all())
 
-        if self.project:
-            self.do_label_projection()
+
+
+        #if self.project:
+            #self.do_label_projection()
 
     def colorize(self):
         """ Colorize pointcloud with the color of each semantic label
@@ -323,6 +338,7 @@ class SemLaserScan(LaserScan):
         mask = self.proj_idx >= 0
 
         # semantics
+        print("sh",self.proj_sem_label.shape, mask.shape, self.sem_label.shape, self.proj_idx.shape)
         self.proj_sem_label[mask] = self.sem_label[self.proj_idx[mask]]
         self.proj_sem_color[mask] = self.sem_color_lut[self.sem_label[self.proj_idx[mask]]]
 
